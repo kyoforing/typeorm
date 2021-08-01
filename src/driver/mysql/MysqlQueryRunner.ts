@@ -624,14 +624,16 @@ export class MysqlQueryRunner extends BaseQueryRunner implements QueryRunner {
 
         if ((newColumn.isGenerated !== oldColumn.isGenerated && newColumn.generationStrategy !== "uuid")
             || oldColumn.type !== newColumn.type
-            || oldColumn.length !== newColumn.length
             || oldColumn.generatedType !== newColumn.generatedType) {
             await this.dropColumn(table, oldColumn);
             await this.addColumn(table, newColumn);
 
             // update cloned table
             clonedTable = table.clone();
-
+        } else if (oldColumn.length !== newColumn.length) {
+            upQueries.push(new Query(`ALTER TABLE ${this.escapePath(table)} MODIFY \`${oldColumn.name}\`  ${this.buildCreateColumnSql(newColumn, true, true)}`));
+            downQueries.push(new Query(`ALTER TABLE ${this.escapePath(table)} MODIFY \`${oldColumn.name}\` ${this.buildCreateColumnSql(oldColumn, true, true)}`));
+            clonedTable = table.clone();
         } else {
             if (newColumn.name !== oldColumn.name) {
                 // We don't change any column properties, just rename it.
